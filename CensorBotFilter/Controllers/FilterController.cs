@@ -8,7 +8,7 @@ namespace CensorBotFilter.Controllers
     public class FilterPost
     {
         [JsonPropertyName("content")]
-        public string Content { get; set; }
+        public string Content { get; set; } = default!;
     }
     [ApiController]
     [Route("[controller]")]
