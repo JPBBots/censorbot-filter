@@ -17,6 +17,18 @@ namespace CensorBotFilter.Utilities
             Start = start;
             End = end;
         }
+
+        public bool NumberInRange (int i)
+        {
+            return ((i - Start) * (i - End)) <= 0;
+        }
+
+        public static bool InRanges(InclusiveRange[] ranges, InclusiveRange test)
+        {
+            return ranges.Any((range) =>
+                test.NumberInRange(range.Start) || test.NumberInRange(range.End)
+            );
+        }
     }
 
     class InclusiveRangeFormatter : JsonConverter<InclusiveRange>

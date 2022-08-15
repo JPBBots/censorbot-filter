@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-
+using CensorBotFilter.Filter.Files;
 using CensorBotFilter.Utilities;
 
 namespace CensorBotFilter.Filter
@@ -19,7 +19,7 @@ namespace CensorBotFilter.Filter
         }
         public void CleanSpots()
         {
-            Spots = Spots.Where((spot) => !spot.Removing && !String.IsNullOrEmpty(spot.Text)).ToList();
+            Spots = Spots.Where((spot) => !spot.Removing && !string.IsNullOrEmpty(spot.Text)).ToList();
         }
 
         public StringResolved ToLower()
@@ -100,12 +100,11 @@ namespace CensorBotFilter.Filter
         }
     } 
 
-    public class Filter
+    public class Resolver
     {
         private static readonly Chars CharacterConversions = FilterJsonLoader.GetChars();
 
-        private static readonly string[] StartingShortWords = new[] { "an", "as", "us", "be" };
-        private static readonly string[] EndingShortWords = new[] { "it", "at", "xd" };
+        private static readonly string[] ShortWords = new[] { "an", "as", "us", "be", "it", "at", "xd" };
 
         private static class CommonRegex
         {
@@ -136,8 +135,7 @@ namespace CensorBotFilter.Filter
 
             resolved.Spots = StringToSpots(resolved);
 
-            TraverseShortCharacters(resolved, TraverseDirection.Forward);
-            TraverseShortCharacters(resolved, TraverseDirection.Backwards);
+            TraverseShortCharacters(resolved);
 
             CombineLeadingCharacters(resolved);
 
@@ -148,13 +146,11 @@ namespace CensorBotFilter.Filter
         {
             var spots = content.Spots.WithoutNoEdits();
 
-            foreach (var (item, index) in spots.WithIndex())
+            foreach (var (item, nextSpot, index) in spots.WithIndexAndNext())
             {
-                if ((index + 1) > (spots.Count - 1)) break;
+                if (nextSpot == null) continue;
 
-                var nextSpot = spots[index + 1];
-
-                if (StartingShortWords.Any((word) => item.Text.EndsWith(word))) continue;
+                if (ShortWords.Any((word) => item.Text.EndsWith(word))) continue;
 
                 var endingCharacter = item.Text[^1];
                 var startingCharacter = nextSpot.Text[0];
@@ -171,39 +167,16 @@ namespace CensorBotFilter.Filter
             content.CleanSpots();
         }
 
-        private enum TraverseDirection
+        private static void TraverseShortCharacters(StringResolved content)
         {
-            Forward,
-            Backwards
-        }
-
-        private static void TraverseShortCharacters(StringResolved content, TraverseDirection direction)
-        {
-            bool forwards = direction == TraverseDirection.Forward;
-            string[] shortWords = forwards ? StartingShortWords : EndingShortWords;
-
-            List<Spot> spots = content.Spots.WithoutNoEdits();
-
-            for (int i = forwards ? 0 : spots.Count - 1; forwards ? i < spots.Count - 1 : i > 0; i += forwards ? 1 : -1)
+            foreach (var (spot, combiningInto) in content.Spots.WithoutNoEdits().WithNext())
             {
-                var spot = spots[i];
-
-                if (spot.NoEdits || shortWords.Contains(spot.Text)) continue;
-
-                var combiningInto = spots[i + (forwards ? 1 : -1)];
-
-                if (combiningInto.NoEdits) continue;
+                if (combiningInto == null || ShortWords.Contains(spot.Text)) continue;
 
                 if (spot.Text.Length <= 3)
                 {
                     combiningInto.UpdateIndexes(spot.Range);
-                    if (forwards)
-                    {
-                        combiningInto.Text = spot.Text + combiningInto.Text;
-                    } else
-                    {
-                        combiningInto.Text += spot.Text;
-                    }
+                    combiningInto.Text = spot.Text + combiningInto.Text;
 
                     spot.Remove();
                 }

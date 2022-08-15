@@ -1,8 +1,9 @@
 ﻿using System.Text.Json;
 
 using CharsMedium = System.Collections.Generic.Dictionary<string, string[]>;
+using LanguageMedium = System.Collections.Generic.Dictionary<string, string[]>;
 
-namespace CensorBotFilter.Filter
+namespace CensorBotFilter.Filter.Files
 {
     public class Chars : Dictionary<string, string> { }
     public static class FilterJsonLoader
@@ -15,9 +16,9 @@ namespace CensorBotFilter.Filter
         }
 
 
-        public static Chars GetChars ()
+        public static Chars GetChars()
         {
-            CharsMedium charsMedium = LoadFile<CharsMedium> ("chars");
+            CharsMedium charsMedium = LoadFile<CharsMedium>("chars");
 
             Chars chars = new();
 
@@ -32,6 +33,18 @@ namespace CensorBotFilter.Filter
             }
 
             return chars;
+        }
+
+        public static Language LoadLanguage (string language)
+        {
+            LanguageMedium langMedium = LoadFile<LanguageMedium>("Filters/" + language);
+
+            return new Language(language, langMedium.Keys.Select((word) =>
+            {
+                string[] uncensor = langMedium[word];
+
+                return new Word(word, uncensor);
+            }).ToArray());
         }
     }
 }

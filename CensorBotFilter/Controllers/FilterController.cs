@@ -18,14 +18,14 @@ namespace CensorBotFilter.Controllers
         [Route("/filter/resolve")]
         public async Task<StringResolved> Resolve([FromBody] FilterPost post)
         {
-            return Filter.Filter.Resolve(post.Content);
+            return Resolver.Resolve(post.Content);
         }
 
         [HttpPost]
         [Route("/filter/test")]
-        public async Task<bool> Test([FromBody] FilterPost post)
+        public async Task<FilterResult> Test([FromBody] FilterPost post)
         {
-            return false;
+            return Tester.Test(post.Content);
         }
     }
 }

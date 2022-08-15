@@ -1,3 +1,5 @@
+using CensorBotFilter.Utilities;
+
 namespace CensorBotFilter
 {
     public class Program
