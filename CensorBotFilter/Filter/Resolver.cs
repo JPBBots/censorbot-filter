@@ -135,7 +135,8 @@ namespace CensorBotFilter.Filter
 
             resolved.Spots = StringToSpots(resolved);
 
-            TraverseShortCharacters(resolved);
+            TraverseShortCharactersForwards(resolved);
+            TraverseShortCharactersBackwards(resolved);
 
             CombineLeadingCharacters(resolved);
 
@@ -167,13 +168,13 @@ namespace CensorBotFilter.Filter
             content.CleanSpots();
         }
 
-        private static void TraverseShortCharacters(StringResolved content)
+        private static void TraverseShortCharactersForwards(StringResolved content)
         {
             foreach (var (spot, combiningInto) in content.Spots.WithoutNoEdits().WithNext())
             {
                 if (combiningInto == null || ShortWords.Contains(spot.Text)) continue;
 
-                if (spot.Text.Length <= 3)
+                if (spot.Text.Length < 3)
                 {
                     combiningInto.UpdateIndexes(spot.Range);
                     combiningInto.Text = spot.Text + combiningInto.Text;
@@ -181,6 +182,26 @@ namespace CensorBotFilter.Filter
                     spot.Remove();
                 }
             }
+
+            content.CleanSpots();
+        }
+
+        private static void TraverseShortCharactersBackwards(StringResolved content)
+        {
+            content.Spots.Reverse();
+            foreach (var (spot, combiningInto) in content.Spots.WithoutNoEdits().WithNext())
+            {
+                if (combiningInto == null || ShortWords.Contains(spot.Text)) continue;
+
+                if (spot.Text.Length < 3)
+                {
+                    combiningInto.UpdateIndexes(spot.Range);
+                    combiningInto.Text += spot.Text;
+
+                    spot.Remove();
+                }
+            }
+            content.Spots.Reverse();
 
             content.CleanSpots();
         }
