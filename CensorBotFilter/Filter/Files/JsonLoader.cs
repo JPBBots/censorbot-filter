@@ -35,7 +35,7 @@ namespace CensorBotFilter.Filter.Files
             return chars;
         }
 
-        public static Language LoadLanguage (string language)
+        public static Language LoadLanguage(string language)
         {
             LanguageMedium langMedium = LoadFile<LanguageMedium>("Filters/" + language);
 
@@ -45,6 +45,11 @@ namespace CensorBotFilter.Filter.Files
 
                 return new Word(word, uncensor);
             }).ToArray());
+        }
+
+        public static string[] GetCombiningCharacters()
+        {
+            return LoadFile<string[]>("combining");
         }
     }
 }

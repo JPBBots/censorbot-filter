@@ -17,10 +17,6 @@ namespace CensorBotFilter.Filter
         {
             Content = content;
         }
-        public void CleanSpots()
-        {
-            Spots = Spots.Where((spot) => !spot.Removing && !string.IsNullOrEmpty(spot.Text)).ToList();
-        }
 
         public StringResolved ToLower()
         {
@@ -56,7 +52,7 @@ namespace CensorBotFilter.Filter
 
     public static class SpotsListExtension
     {
-        public static List<Spot> WithoutNoEdits (this List<Spot> list)
+        public static List<Spot> WithoutNoEdits(this List<Spot> list)
         {
             return list.Where((spot) => !spot.NoEdits).ToList();
         }
@@ -76,29 +72,25 @@ namespace CensorBotFilter.Filter
         [JsonIgnore]
         public bool Removing { get; set; } = false;
 
-        public Spot (string text, InclusiveRange range)
+        public Spot(string text, InclusiveRange range)
         {
             Text = text;
             Range = range;
         }
 
-        public void UpdateIndexes (int index)
-        {
-            if (index < Range.Start) Range.Start = index;
-            if (index > Range.End) Range.End = index;
-        }
-
-        public void UpdateIndexes (InclusiveRange range)
-        {
-            UpdateIndexes(range.Start);
-            UpdateIndexes(range.End);
-        }
-
-        public void Remove ()
+        public void Remove()
         {
             Removing = true;
         }
-    } 
+    }
+
+    public static class SpotListExtension
+    {
+        public static void Clean(this List<Spot> spots)
+        {
+            spots.RemoveAll((spot) => spot.Removing || string.IsNullOrEmpty(spot.Text));
+        }
+    }
 
     public class Resolver
     {
@@ -120,6 +112,7 @@ namespace CensorBotFilter.Filter
         {
             public static readonly Regex ExtendedSpaces = new(@"\s|_|\/|\\|\.|\n|&|-|\^|\+|=|:|~|,|\?|\(|\)", RegexOptions.Compiled);
             public static readonly Regex ExtendedNothing = new(@"""|\*|'|\||\`|<|>|#|!|\[|\]|\{|\}|;|%|\u200D|\u200F|\u200E|\u200C|\u200B", RegexOptions.Compiled);
+            public static readonly Regex CombiningCharacters = new(string.Join("|", FilterJsonLoader.GetCombiningCharacters()), RegexOptions.Compiled);
         }
 
         public static StringResolved Resolve(string content)
@@ -131,6 +124,7 @@ namespace CensorBotFilter.Filter
             RemoveIgnoredPatterns(resolved);
             ConvertAlternativeCharacters(resolved);
 
+            // Remove newlines and spaces from beginning
             resolved.TrimStart();
 
             resolved.Spots = StringToSpots(resolved);
@@ -140,10 +134,13 @@ namespace CensorBotFilter.Filter
 
             CombineLeadingCharacters(resolved);
 
+            // Sort so .NoEdits spots are first
+            resolved.Spots.Sort((spot, _) => spot.NoEdits ? -1 : 1);
+
             return resolved;
         }
 
-        private static void CombineLeadingCharacters (StringResolved content)
+        private static void CombineLeadingCharacters(StringResolved content)
         {
             var spots = content.Spots.WithoutNoEdits();
 
@@ -159,13 +156,13 @@ namespace CensorBotFilter.Filter
                 if (endingCharacter == startingCharacter)
                 {
                     nextSpot.Text = item.Text + nextSpot.Text;
-                    nextSpot.UpdateIndexes(item.Range);
+                    nextSpot.Range.UpdateIndexes(item.Range);
 
                     item.Remove();
                 }
             }
 
-            content.CleanSpots();
+            content.Spots.Clean();
         }
 
         private static void TraverseShortCharactersForwards(StringResolved content)
@@ -176,14 +173,14 @@ namespace CensorBotFilter.Filter
 
                 if (spot.Text.Length < 3)
                 {
-                    combiningInto.UpdateIndexes(spot.Range);
+                    combiningInto.Range.UpdateIndexes(spot.Range);
                     combiningInto.Text = spot.Text + combiningInto.Text;
 
                     spot.Remove();
                 }
             }
 
-            content.CleanSpots();
+            content.Spots.Clean();
         }
 
         private static void TraverseShortCharactersBackwards(StringResolved content)
@@ -195,7 +192,7 @@ namespace CensorBotFilter.Filter
 
                 if (spot.Text.Length < 3)
                 {
-                    combiningInto.UpdateIndexes(spot.Range);
+                    combiningInto.Range.UpdateIndexes(spot.Range);
                     combiningInto.Text += spot.Text;
 
                     spot.Remove();
@@ -203,15 +200,15 @@ namespace CensorBotFilter.Filter
             }
             content.Spots.Reverse();
 
-            content.CleanSpots();
+            content.Spots.Clean();
         }
 
-        private static List<Spot> StringToSpots (StringResolved content)
+        private static List<Spot> StringToSpots(StringResolved content)
         {
             List<Spot> spots = new();
 
             string[] splitContent = CoreRegex.ExtendedSpaces.Split(content.Content);
-            
+
             foreach (var (piece, index) in splitContent.WithIndex())
             {
                 string resolvedPiece = CoreRegex.ExtendedNothing.Replace(piece, "");
@@ -226,9 +223,9 @@ namespace CensorBotFilter.Filter
             return spots;
         }
 
-        private static void ConvertAlternativeCharacters (StringResolved resolved)
+        private static void ConvertAlternativeCharacters(StringResolved resolved)
         {
-            resolved.Replace(CommonRegex.SingleCharacter, (match) =>
+            resolved.Replace(CoreRegex.CombiningCharacters, "").Replace(CommonRegex.SingleCharacter, (match) =>
             {
                 if (CoreRegex.ExtendedNothing.IsMatch(match.Value) || CoreRegex.ExtendedSpaces.IsMatch(match.Value)) return match.Value;
 
@@ -236,7 +233,8 @@ namespace CensorBotFilter.Filter
             });
         }
 
-        private static void RemoveIgnoredPatterns (StringResolved resolved) {
+        private static void RemoveIgnoredPatterns(StringResolved resolved)
+        {
             resolved
                 .Replace(CommonRegex.Mention, "")
                 .Replace(CommonRegex.Emoji, "${name}")

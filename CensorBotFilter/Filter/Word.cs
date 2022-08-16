@@ -9,18 +9,21 @@ namespace CensorBotFilter.Filter
 
         public string Name { get; private set; } = null!;
 
-        public Word (string word, string[] uncensorList)
+        public Word(string word, string[]? uncensorList = null)
         {
             Name = word;
             Matcher = new Regex(word, RegexOptions.Compiled);
 
-            foreach (var uncensor in uncensorList)
+            if (uncensorList != null)
             {
-                Uncensor.Add(new Regex(uncensor, RegexOptions.Compiled));
+                foreach (var uncensor in uncensorList)
+                {
+                    Uncensor.Add(new Regex(uncensor, RegexOptions.Compiled));
+                }
             }
         }
 
-        public bool Test (string str, string[] customUncensorList)
+        public bool Test(string str, IEnumerable<string> customUncensorList)
         {
             if (!Matcher.Match(str).Success) return false;
 
@@ -28,7 +31,7 @@ namespace CensorBotFilter.Filter
             {
                 if (uncensor.Match(str).Success) return false;
             }
-            foreach(var uncensorWord in customUncensorList)
+            foreach (var uncensorWord in customUncensorList)
             {
                 if (new Regex(uncensorWord).Match(str).Success) return false;
             }
