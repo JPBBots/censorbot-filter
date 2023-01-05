@@ -135,7 +135,7 @@ namespace CensorBotFilter.Filter
             CombineLeadingCharacters(resolved);
 
             // Sort so .NoEdits spots are first
-            resolved.Spots.Sort((spot, _) => spot.NoEdits ? -1 : 1);
+            resolved.Spots.Sort((spot1, spot2) => spot1.NoEdits && spot2.NoEdits ? 0 : spot1.NoEdits ? -1 : 1);
 
             return resolved;
         }

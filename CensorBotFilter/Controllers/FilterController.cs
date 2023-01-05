@@ -48,6 +48,8 @@ namespace CensorBotFilter.Controllers
 
             Console.WriteLine("Time taken: {0:c}", timeTaken);
 
+            HttpContext.Response.Headers.Add("Timing", timeTaken.TotalMilliseconds.ToString() + "ms");
+
             return test;
         }
     }
